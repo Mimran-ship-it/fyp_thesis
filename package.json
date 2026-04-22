@@ -6,21 +6,35 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "normalize-thesis-terms": "npx ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" scripts/normalize-thesis-terminology-all.ts"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.9.0",
+    "dotenv": "^17.4.2",
+    "jose": "^6.2.2",
+    "jsonwebtoken": "^9.0.3",
+    "katex": "^0.16.45",
+    "lucide-react": "^1.8.0",
+    "mongoose": "^8.23.0",
     "next": "16.2.4",
+    "pagedjs": "^0.4.3",
+    "puppeteer": "^24.42.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

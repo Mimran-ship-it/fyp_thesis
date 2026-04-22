@@ -1,65 +1,62 @@
-import Image from "next/image";
+import { ChapterRenderer } from "@/components/ChapterRenderer";
+import { TocSidebar } from "@/components/TocSidebar";
+import { PdfButton } from "@/components/PdfButton";
+import { getPublishedChapters } from "@/lib/chapters";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const chapters = await getPublishedChapters();
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex-1 bg-gray-50">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-0 lg:grid-cols-[320px_1fr]">
+        <TocSidebar
+          items={chapters.map((c) => ({
+            slug: c.slug,
+            title: c.title,
+            summary: c.summary,
+          }))}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <main className="min-w-0 px-5 py-8 lg:px-10 lg:py-10">
+          <header className="overflow-hidden rounded-2xl shadow-sm border border-black/10">
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-8 py-10 text-white">
+              <div className="text-xs font-sans tracking-[0.16em] uppercase text-blue-200/90">
+                NUST · SMME · FINAL YEAR PROJECT THESIS
+              </div>
+              <h1 className="mt-3 font-sans text-3xl font-semibold tracking-tight sm:text-4xl">
+                Design, Fabrication &amp; Control of a Bio-Inspired Soft Robotic
+                Gripping Mechanism
+              </h1>
+              <p className="mt-4 max-w-3xl font-sans text-sm leading-7 text-white/90">
+                Interactive thesis report with structured equations, figures,
+                and pressure–deformation datasets.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <PdfButton className="inline-flex items-center justify-center rounded-full bg-[#0b0f19] px-5 py-2.5 font-sans text-sm text-white shadow-sm ring-1 ring-white/10 hover:bg-black disabled:opacity-60" />
+                <a
+                  href="/admin/login"
+                  className="inline-flex items-center justify-center rounded-full border border-white/30 bg-transparent px-5 py-2.5 font-sans text-sm text-white hover:bg-white/10"
+                >
+                  Admin
+                </a>
+              </div>
+            </div>
+          </header>
+
+          <div className="mt-8 space-y-10">
+            {chapters.map((c) => (
+              <section
+                key={c.slug}
+                id={c.slug}
+                className="rounded-2xl border border-black/10 bg-white px-6 py-8 shadow-sm sm:px-12 sm:py-10"
+              >
+                <ChapterRenderer blocks={c.blocks} />
+              </section>
+            ))}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
+

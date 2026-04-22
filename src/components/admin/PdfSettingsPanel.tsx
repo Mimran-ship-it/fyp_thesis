@@ -122,12 +122,12 @@ export function PdfSettingsPanel() {
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
           <a
-            href="/pdf-render/thesis"
+            href="/print"
             target="_blank"
             rel="noreferrer"
             className="rounded-full border border-[#2563eb] bg-white px-4 py-2 font-sans text-sm font-semibold text-[#2563eb] transition-colors hover:bg-blue-50"
           >
-            Preview PDF (HTML)
+            Print preview (HTML)
           </a>
           <a
             href="/api/pdf"

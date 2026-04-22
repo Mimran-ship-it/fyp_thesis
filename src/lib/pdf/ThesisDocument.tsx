@@ -6,13 +6,17 @@ import {
   StyleSheet,
   Image,
 } from "@react-pdf/renderer";
+import type { Style } from "@react-pdf/types";
 import type { ChapterBlock, ChapterDoc, TableBlock } from "@/models/Chapter";
 import type { PdfSettingsDoc } from "@/models/PdfSettings";
 import { THESIS_TITLE } from "@/lib/pdf/constants";
-
-function escapeId(s: string) {
-  return s.replace(/[^a-zA-Z0-9-_]/g, "-");
-}
+import {
+  columnWidthPercent,
+  safeText,
+  sanitizeDimension,
+  sanitizeHexColor,
+  sanitizeNumber,
+} from "@/lib/pdf/sanitizeStyles";
 
 function isTbd(v: unknown) {
   if (v === null || v === undefined) return false;
@@ -63,14 +67,15 @@ function buildNumbering(
   const figures: Array<{ key: string; label: string; caption: string }> = [];
   const tables: Array<{ key: string; label: string; title: string }> = [];
   let eqGlobal = 0;
+  const chs = Array.isArray(chapters) ? chapters : [];
 
-  for (const c of chapters) {
-    const chapNo = c.chapterNumber;
+  for (const c of chs) {
+    const chapNo = sanitizeNumber(c.chapterNumber, 1);
     let eqChap = 0;
     let figChap = 0;
     let tabChap = 0;
 
-    c.blocks.forEach((b, i) => {
+    (Array.isArray(c.blocks) ? c.blocks : []).forEach((b, i) => {
       const key = `${c.slug}:${i}`;
       if (b.type === "equation") {
         const latex = (b.latex || "").trim();
@@ -107,9 +112,10 @@ function buildNumbering(
 }
 
 function createStyles(accentColor: string) {
+  const accent = sanitizeHexColor(accentColor);
   return StyleSheet.create({
     page: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 11,
       lineHeight: 1.5,
       color: "#1a1a1a",
@@ -119,7 +125,7 @@ function createStyles(accentColor: string) {
       paddingRight: 56,
     },
     coverPage: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 11,
       color: "#1a1a1a",
       paddingTop: 48,
@@ -131,7 +137,7 @@ function createStyles(accentColor: string) {
       alignItems: "center",
     },
     coverUni: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 10,
       letterSpacing: 2,
       textTransform: "uppercase",
@@ -140,7 +146,7 @@ function createStyles(accentColor: string) {
       marginTop: 24,
     },
     coverSchool: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 9,
       color: "#334155",
       textAlign: "center",
@@ -154,9 +160,8 @@ function createStyles(accentColor: string) {
       marginBottom: 20,
     },
     coverTitle: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Bold",
       fontSize: 22,
-      fontWeight: 700,
       textAlign: "center",
       color: "#0f172a",
       lineHeight: 1.2,
@@ -164,14 +169,13 @@ function createStyles(accentColor: string) {
     },
     coverRuleThin: {
       height: 1,
-      backgroundColor: "#334155",
+      backgroundColor: "#64748b",
       width: "70%",
       marginTop: 20,
       marginBottom: 16,
-      opacity: 0.75,
     },
     coverSub: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 9,
       color: "#0f172a",
       textAlign: "center",
@@ -184,7 +188,7 @@ function createStyles(accentColor: string) {
       width: 280,
     },
     coverMetaLabel: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 9,
       width: 90,
       textAlign: "right",
@@ -194,7 +198,7 @@ function createStyles(accentColor: string) {
       paddingRight: 8,
     },
     coverMetaValue: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 9,
       flex: 1,
       textAlign: "left",
@@ -217,12 +221,12 @@ function createStyles(accentColor: string) {
       justifyContent: "center",
     },
     crestPhText: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 8,
       color: "#94a3b8",
     },
     tocTitle: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 14,
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -238,22 +242,22 @@ function createStyles(accentColor: string) {
       marginBottom: 8,
     },
     tocLeft: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 11,
       color: "#1a1a1a",
       maxWidth: "72%",
     },
     tocDots: {
       flex: 1,
-      borderBottomWidth: 0.5,
+      borderBottomWidth: 1,
       borderBottomColor: "#94a3b8",
-      borderStyle: "dotted",
+      borderStyle: "solid",
       marginHorizontal: 6,
       marginBottom: 3,
       minHeight: 1,
     },
     sectionTitle: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 14,
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -264,16 +268,11 @@ function createStyles(accentColor: string) {
       marginBottom: 12,
     },
     loxItem: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 10,
       color: "#1a1a1a",
       marginBottom: 6,
       paddingLeft: 4,
-    },
-    loxLabel: {
-      fontFamily: "Lora",
-      fontSize: 10,
-      fontWeight: 700,
     },
     pageHeader: {
       position: "absolute",
@@ -287,23 +286,28 @@ function createStyles(accentColor: string) {
       paddingBottom: 4,
     },
     pageHeaderText: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 8,
       color: "#64748b",
       letterSpacing: 0.8,
     },
-    pageFooterText: {
+    /** Outer shell is fixed + absolute; inner Text uses `render` only (no `fixed` on that Text). */
+    pageFooterShell: {
       position: "absolute",
       bottom: 20,
-      left: 0,
-      right: 0,
-      fontFamily: "Inter",
+      left: 80,
+      right: 56,
+      height: 14,
+      justifyContent: "flex-end",
+    },
+    pageFooterText: {
+      fontFamily: "Helvetica",
       fontSize: 8,
       color: "#64748b",
       textAlign: "center",
     },
     chapterLabel: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 9,
       letterSpacing: 2,
       color: "#64748b",
@@ -311,23 +315,21 @@ function createStyles(accentColor: string) {
       marginBottom: 6,
     },
     chapterTitle: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica-Bold",
       fontSize: 22,
-      fontWeight: 700,
       textTransform: "uppercase",
       letterSpacing: 0.5,
       color: "#0f172a",
       marginBottom: 20,
       borderLeftWidth: 5,
-      borderLeftColor: accentColor,
+      borderLeftColor: accent,
       borderLeftStyle: "solid",
       paddingLeft: 10,
       lineHeight: 1.2,
     },
     h2: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica-Bold",
       fontSize: 13,
-      fontWeight: 700,
       color: "#0f172a",
       marginTop: 14,
       marginBottom: 8,
@@ -336,16 +338,14 @@ function createStyles(accentColor: string) {
       borderBottomColor: "#e2e8f0",
     },
     h3: {
-      fontFamily: "Lora",
+      fontFamily: "Times-BoldItalic",
       fontSize: 11,
-      fontWeight: 700,
-      fontStyle: "italic",
       color: "#1e3a5f",
       marginTop: 10,
       marginBottom: 6,
     },
     paragraph: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 11,
       lineHeight: 1.5,
       textAlign: "justify",
@@ -360,7 +360,7 @@ function createStyles(accentColor: string) {
       padding: 16,
       textAlign: "center",
       color: "#94a3b8",
-      fontStyle: "italic",
+      fontFamily: "Times-Italic",
       fontSize: 10,
       marginVertical: 10,
       backgroundColor: "#f8fafc",
@@ -369,17 +369,21 @@ function createStyles(accentColor: string) {
       marginVertical: 8,
     },
     equationBox: {
-      position: "relative",
+      flexDirection: "row",
+      alignItems: "flex-start",
       backgroundColor: "#f8fafc",
       borderWidth: 1,
       borderColor: "#e2e8f0",
       borderStyle: "solid",
       borderRadius: 4,
       paddingVertical: 12,
-      paddingLeft: 12,
-      paddingRight: 48,
+      paddingHorizontal: 12,
       marginTop: 12,
       marginBottom: 4,
+    },
+    equationBody: {
+      flex: 1,
+      minWidth: 0,
     },
     equationMono: {
       fontFamily: "Courier",
@@ -388,32 +392,29 @@ function createStyles(accentColor: string) {
       lineHeight: 1.35,
     },
     equationNote: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica-Oblique",
       fontSize: 7,
       color: "#64748b",
       marginTop: 6,
-      fontStyle: "italic",
     },
     equationNumber: {
-      position: "absolute",
-      right: 12,
-      top: 12,
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 11,
       color: "#374151",
+      marginLeft: 8,
+      alignSelf: "flex-start",
+      paddingTop: 2,
     },
     equationCaption: {
-      fontFamily: "Lora",
-      fontSize: 9.5,
-      fontStyle: "italic",
+      fontFamily: "Times-Italic",
+      fontSize: 10,
       color: "#4b5563",
       textAlign: "center",
       marginBottom: 12,
     },
     tableCaption: {
-      fontFamily: "Inter",
-      fontSize: 9.5,
-      fontWeight: 700,
+      fontFamily: "Helvetica-Bold",
+      fontSize: 10,
       textTransform: "uppercase",
       letterSpacing: 0.6,
       color: "#0f172a",
@@ -423,7 +424,7 @@ function createStyles(accentColor: string) {
       flexDirection: "row",
       borderTopWidth: 2,
       borderTopColor: "#0f172a",
-      borderBottomWidth: 1.5,
+      borderBottomWidth: 2,
       borderBottomColor: "#0f172a",
       borderStyle: "solid",
       paddingVertical: 5,
@@ -441,34 +442,31 @@ function createStyles(accentColor: string) {
       borderStyle: "solid",
     },
     tableHeaderCell: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica-Bold",
       fontSize: 9,
-      fontWeight: 700,
       color: "#0f172a",
-      flex: 1,
+      paddingVertical: 2,
       paddingHorizontal: 6,
       textTransform: "uppercase",
       letterSpacing: 0.4,
     },
     tableCell: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 10,
       color: "#1a1a1a",
-      flex: 1,
+      paddingVertical: 2,
       paddingHorizontal: 6,
     },
     tableCellTbd: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Italic",
       fontSize: 10,
       color: "#b45309",
-      fontStyle: "italic",
-      flex: 1,
+      paddingVertical: 2,
       paddingHorizontal: 6,
     },
     tableFoot: {
-      fontFamily: "Lora",
-      fontSize: 9.5,
-      fontStyle: "italic",
+      fontFamily: "Times-Italic",
+      fontSize: 10,
       color: "#4b5563",
       textAlign: "center",
       marginTop: 4,
@@ -483,10 +481,8 @@ function createStyles(accentColor: string) {
       objectFit: "contain",
     },
     figureCaption: {
-      fontFamily: "Lora",
-      fontSize: 9.5,
-      fontStyle: "italic",
-      fontWeight: 700,
+      fontFamily: "Times-BoldItalic",
+      fontSize: 10,
       color: "#374151",
       textAlign: "center",
       marginTop: 6,
@@ -497,7 +493,7 @@ function createStyles(accentColor: string) {
       width: "100%",
     },
     refTitle: {
-      fontFamily: "Inter",
+      fontFamily: "Helvetica",
       fontSize: 14,
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -508,7 +504,7 @@ function createStyles(accentColor: string) {
       marginBottom: 12,
     },
     refItem: {
-      fontFamily: "Lora",
+      fontFamily: "Times-Roman",
       fontSize: 10,
       lineHeight: 1.45,
       color: "#1a1a1a",
@@ -537,33 +533,44 @@ function BlockViews({
   tabLabelByKey: Record<string, string>;
   baseUrl: string;
 }) {
+  const list = Array.isArray(blocks) ? blocks : [];
+  const chapDisplay = sanitizeNumber(chapterNumber, 1);
+
   return (
     <>
-      {blocks.map((b, i) => {
+      {list.map((b, i) => {
         const key = `${chapterSlug}:${i}`;
         if (b.type === "heading") {
+          if (typeof b.text !== "string" || !b.text.trim()) return null;
           if (b.level === 1) {
             return (
               <View key={i} wrap={false}>
-                <Text style={styles.chapterLabel}>CHAPTER {chapterNumber}</Text>
-                <Text style={styles.chapterTitle}>{b.text}</Text>
+                <Text style={styles.chapterLabel}>CHAPTER {chapDisplay}</Text>
+                <Text style={styles.chapterTitle}>{safeText(b.text)}</Text>
               </View>
             );
           }
           if (b.level === 2) {
             return (
               <Text key={i} style={styles.h2} wrap={false}>
-                {b.text}
+                {safeText(b.text)}
               </Text>
             );
           }
           return (
             <Text key={i} style={styles.h3} wrap={false}>
-              {b.text}
+              {safeText(b.text)}
             </Text>
           );
         }
         if (b.type === "paragraph") {
+          if (typeof b.text !== "string") {
+            return (
+              <View key={i} style={styles.placeholder} wrap={false}>
+                <Text>[ Paragraph placeholder — add text in admin ]</Text>
+              </View>
+            );
+          }
           const t = plainTextFromBlockText(b.text);
           if (!t) {
             return (
@@ -579,41 +586,56 @@ function BlockViews({
           );
         }
         if (b.type === "equation") {
-          const latex = (b.latex || "").trim();
-          if (!latex) {
+          if (typeof b.latex !== "string" || !b.latex.trim()) {
             return (
               <View key={i} style={styles.placeholder} wrap={false}>
                 <Text>[ Equation placeholder — add LaTeX in admin ]</Text>
               </View>
             );
           }
+          const latex = b.latex.trim();
           const num = eqLabelByKey[key] || "";
           return (
             <View key={i} style={styles.equationOuter} wrap={false}>
               <View style={styles.equationBox}>
-                <Text style={styles.equationMono}>{latex}</Text>
-                <Text style={styles.equationNote}>
-                  Full typeset math (KaTeX) is available in the web chapter preview; PDF uses
-                  LaTeX source for portability on serverless hosts.
-                </Text>
+                <View style={styles.equationBody}>
+                  <Text style={styles.equationMono}>{latex}</Text>
+                  <Text style={styles.equationNote}>
+                    Full typeset math (KaTeX) is available in the web chapter preview; PDF uses
+                    LaTeX source for portability on serverless hosts.
+                  </Text>
+                </View>
                 {num ? <Text style={styles.equationNumber}>{num}</Text> : null}
               </View>
               {b.caption ? (
-                <Text style={styles.equationCaption}>{b.caption}</Text>
+                <Text style={styles.equationCaption}>{safeText(b.caption)}</Text>
               ) : null}
             </View>
           );
         }
         if (b.type === "table") {
           const block = b as TableBlock;
-          const dataRows = (block.rows || []).filter((row) =>
-            block.columns.some((c) => {
-              const v = row[c.key];
+          const columns = Array.isArray(block.columns) ? block.columns : [];
+          const rows = Array.isArray(block.rows) ? block.rows : [];
+          if (!columns.length || !rows.length) {
+            return (
+              <View key={i} wrap={false}>
+                <Text style={styles.tableCaption}>Table</Text>
+                <View style={styles.placeholder}>
+                  <Text>[ Table placeholder — add columns and rows in admin ]</Text>
+                </View>
+              </View>
+            );
+          }
+          const colWidth = columnWidthPercent(columns.length);
+          const dataRows = rows.filter((row) =>
+            columns.some((c) => {
+              const v = row?.[c.key];
               return v !== null && v !== undefined && String(v).trim() !== "";
             })
           );
           const label = tabLabelByKey[key] || "Table";
-          const titlePart = (block.title || "").trim();
+          const titlePart = typeof block.title === "string" ? block.title.trim() : "";
           const capText = titlePart ? `${label} — ${titlePart}` : label;
           if (dataRows.length === 0) {
             return (
@@ -626,56 +648,65 @@ function BlockViews({
             );
           }
           return (
-            <View key={i} style={{ marginBottom: 12 }} wrap={false}>
+            <View key={i} style={{ marginBottom: sanitizeNumber(12, 12) }} wrap={false}>
               <Text style={styles.tableCaption}>{capText}</Text>
               <View style={styles.tableHeaderRow}>
-                {block.columns.map((c) => (
-                  <Text key={c.key} style={styles.tableHeaderCell}>
-                    {c.label}
-                    {c.unit ? ` (${c.unit})` : ""}
+                {columns.map((c) => (
+                  <Text
+                    key={String(c.key)}
+                    style={[styles.tableHeaderCell, { width: colWidth }]}
+                  >
+                    {safeText(c.label)}
+                    {c.unit ? ` (${safeText(c.unit)})` : ""}
                   </Text>
                 ))}
               </View>
-              {block.rows.map((row, ri) => (
-                <View
-                  key={ri}
-                  style={{
-                    ...styles.tableRow,
-                    ...(ri % 2 === 1 ? styles.tableRowEven : {}),
-                    ...(ri === block.rows.length - 1 ? styles.tableLastRow : {}),
-                  }}
-                >
-                  {block.columns.map((c) => {
-                    const v = row[c.key];
-                    const cellStyle = isTbd(v) ? styles.tableCellTbd : styles.tableCell;
-                    return (
-                      <Text key={c.key} style={cellStyle}>
-                        {v === null || v === undefined ? "" : String(v)}
-                      </Text>
-                    );
-                  })}
-                </View>
-              ))}
+              {rows.map((row, ri) => {
+                const rowStyle: Style[] = [styles.tableRow];
+                if (ri % 2 === 1) rowStyle.push(styles.tableRowEven);
+                if (ri === rows.length - 1) rowStyle.push(styles.tableLastRow);
+                return (
+                  <View key={ri} style={rowStyle}>
+                    {columns.map((c) => {
+                      const v = row?.[c.key];
+                      const cellStyle = isTbd(v) ? styles.tableCellTbd : styles.tableCell;
+                      return (
+                        <Text
+                          key={String(c.key)}
+                          style={[cellStyle, { width: colWidth }]}
+                        >
+                          {v === null || v === undefined ? "" : safeText(v)}
+                        </Text>
+                      );
+                    })}
+                  </View>
+                );
+              })}
               {block.caption ? (
-                <Text style={styles.tableFoot}>{block.caption}</Text>
+                <Text style={styles.tableFoot}>{safeText(block.caption)}</Text>
               ) : null}
             </View>
           );
         }
         if (b.type === "figure") {
           const label = figLabelByKey[key] || "Figure";
-          const resolved = resolveImageSrc(b.src, baseUrl);
+          const srcOk = typeof b.src === "string" && b.src.trim().length > 0;
+          const resolved = srcOk ? resolveImageSrc(b.src, baseUrl) : null;
+          const maxImg = sanitizeDimension(b.height, 280);
           return (
             <View key={i} style={styles.figureWrap} wrap={false}>
               {resolved ? (
-                <Image style={styles.figureImg} src={resolved} />
+                <Image
+                  style={[styles.figureImg, { maxHeight: maxImg }]}
+                  src={resolved}
+                />
               ) : (
                 <View style={styles.placeholder}>
                   <Text>[ Figure placeholder — upload image in admin ]</Text>
                 </View>
               )}
               <Text style={styles.figureCaption}>
-                {`${label} — ${b.caption || ""}`}
+                {`${label} — ${safeText(b.caption)}`}
               </Text>
             </View>
           );
@@ -696,10 +727,11 @@ export function ThesisDocument({
   /** Absolute origin (e.g. https://your-app.vercel.app) for resolving relative figure URLs */
   baseUrl: string;
 }) {
+  const safeChapters = Array.isArray(chapters) ? chapters : [];
   const accent = settings.accentColor || "#2563eb";
   const styles = createStyles(accent);
   const { eqLabelByKey, figLabelByKey, tabLabelByKey, figures, tables } = buildNumbering(
-    chapters,
+    safeChapters,
     settings
   );
 
@@ -712,16 +744,21 @@ export function ThesisDocument({
         <Text style={styles.pageHeaderText}>NUST · SMME · FYP Thesis</Text>
         <Text style={styles.pageHeaderText}>{headerRight}</Text>
       </View>
-      <Text
-        style={styles.pageFooterText}
-        fixed
-        render={({ pageNumber }) => `— ${pageNumber} —`}
-      />
+      <View style={styles.pageFooterShell} fixed>
+        <Text
+          style={styles.pageFooterText}
+          render={({ pageNumber }) => `— ${pageNumber ?? 1} —`}
+        />
+      </View>
     </>
   );
 
   return (
-    <Document title={title} author={settings.authorName} subject="FYP Thesis">
+    <Document
+      title={title}
+      author={safeText(settings.authorName, "Author")}
+      subject="FYP Thesis"
+    >
       {settings.showCoverPage ? (
         <Page size="A4" style={styles.coverPage}>
           <View style={styles.crestBox}>
@@ -745,20 +782,20 @@ export function ThesisDocument({
           <View style={styles.coverRuleThin} />
           <Text style={styles.coverSub}>
             Submitted in partial fulfillment of the requirements for the degree of{" "}
-            {settings.degreeTitle}
+            {safeText(settings.degreeTitle)}
           </Text>
           <View style={{ marginTop: 28, width: 300 }}>
             <View style={styles.coverMetaRow}>
               <Text style={styles.coverMetaLabel}>Author</Text>
-              <Text style={styles.coverMetaValue}>{settings.authorName}</Text>
+              <Text style={styles.coverMetaValue}>{safeText(settings.authorName)}</Text>
             </View>
             <View style={styles.coverMetaRow}>
               <Text style={styles.coverMetaLabel}>Supervisor</Text>
-              <Text style={styles.coverMetaValue}>{settings.supervisorName}</Text>
+              <Text style={styles.coverMetaValue}>{safeText(settings.supervisorName)}</Text>
             </View>
             <View style={styles.coverMetaRow}>
               <Text style={styles.coverMetaLabel}>Year</Text>
-              <Text style={styles.coverMetaValue}>{settings.submissionYear}</Text>
+              <Text style={styles.coverMetaValue}>{safeText(settings.submissionYear)}</Text>
             </View>
           </View>
           <View style={{ marginTop: 48, alignItems: "center" }}>
@@ -779,10 +816,10 @@ export function ThesisDocument({
       {settings.showToc ? (
         <Page size="A4" style={styles.page}>
           <Text style={styles.tocTitle}>Table of Contents</Text>
-          {chapters.map((c) => (
+          {safeChapters.map((c) => (
             <View key={c.slug} style={styles.tocRow}>
               <Text style={styles.tocLeft}>
-                {c.chapterNumber}. {c.title}
+                {sanitizeNumber(c.chapterNumber, 0)}. {safeText(c.title)}
               </Text>
               <View style={styles.tocDots} />
             </View>
@@ -810,7 +847,7 @@ export function ThesisDocument({
         ) : (
           figures.map((f) => (
             <Text key={f.key} style={styles.loxItem}>
-              <Text style={styles.loxLabel}>{f.label}</Text> {f.caption}
+              {`${safeText(f.label)} — ${safeText(f.caption)}`}
             </Text>
           ))
         )}
@@ -821,14 +858,14 @@ export function ThesisDocument({
         ) : (
           tables.map((t) => (
             <Text key={t.key} style={styles.loxItem}>
-              <Text style={styles.loxLabel}>{t.label}</Text> {t.title}
+              {`${safeText(t.label)} — ${safeText(t.title)}`}
             </Text>
           ))
         )}
-        {chapters.map((c) => (
+        {safeChapters.map((c) => (
           <View key={c.slug} break>
             <BlockViews
-              blocks={c.blocks}
+              blocks={Array.isArray(c.blocks) ? c.blocks : []}
               chapterNumber={c.chapterNumber}
               chapterSlug={c.slug}
               styles={styles}

@@ -57,8 +57,30 @@ export async function GET(req: Request) {
       },
     });
   } catch (error: unknown) {
-    console.error("PDF generation failed:", error);
     const message = error instanceof Error ? error.message : "pdf_failed";
+    console.error("PDF crash details:", {
+      message,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    try {
+      await dbConnect();
+      const chapters = await getPublishedChapters();
+      const dbg = chapters.map((c) => ({
+        slug: c.slug,
+        blocks: Array.isArray(c.blocks) ? c.blocks.length : 0,
+        blockTypes: Array.isArray(c.blocks)
+          ? c.blocks.map((b) =>
+              b && typeof b === "object" && "type" in b ? (b as { type: string }).type : "?"
+            )
+          : [],
+      }));
+      console.error("PDF chapter/block snapshot (for layout debugging):", {
+        chapterCount: chapters.length,
+        blockCounts: dbg,
+      });
+    } catch {
+      // ignore secondary logging failures
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

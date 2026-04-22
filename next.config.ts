@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Next.js 16: use top-level serverExternalPackages (replaces experimental.serverComponentsExternalPackages).
   serverExternalPackages: [
     "@react-pdf/renderer",
     "@react-pdf/font",

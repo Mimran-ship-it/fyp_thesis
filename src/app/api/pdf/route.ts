@@ -1,4 +1,4 @@
-import React from "react";
+import { createElement } from "react";
 import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { dbConnect } from "@/lib/db";
@@ -10,6 +10,8 @@ import type { ChapterDoc } from "@/models/Chapter";
 import type { PdfSettingsDoc } from "@/models/PdfSettings";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function getOrigin(req: Request) {
   const url = new URL(req.url);
@@ -37,23 +39,26 @@ export async function GET(req: Request) {
       settings: PdfSettingsDoc;
     };
 
+    // ThesisDocument’s root is <Document />; cast satisfies renderToBuffer’s Document-only typing.
     const buffer = await renderToBuffer(
-      <ThesisDocument
-        chapters={serialized.chapters}
-        settings={serialized.settings}
-        baseUrl={origin}
-      />
+      createElement(ThesisDocument, {
+        chapters: serialized.chapters,
+        settings: serialized.settings,
+        baseUrl: origin,
+      }) as never
     );
 
     return new NextResponse(Buffer.from(buffer), {
       status: 200,
       headers: {
-        "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="thesis.pdf"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="thesis.pdf"`,
+        "Cache-Control": "no-store",
       },
     });
-  } catch (e) {
-    console.error("PDF generation failed:", e);
-    return NextResponse.json({ error: "pdf_failed" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("PDF generation failed:", error);
+    const message = error instanceof Error ? error.message : "pdf_failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

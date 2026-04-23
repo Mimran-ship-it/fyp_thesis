@@ -6,6 +6,8 @@ import type { ChapterBlock } from "../models/Chapter";
  */
 export function normalizeThesisText(input: string): string {
   let s = input;
+  s = s.replace(/(Ecoflex\s+00-30)(?:\s+00-30)+/gi, "$1");
+  s = s.replace(/\b00-30(?:\s+00-30)+\b/gi, "00-30");
   // Ecoflex 00-30 (long form first; avoid duplicating "00-30")
   s = s.replace(/\bEco[-\s]?Flex\s*00[-\s]*30\b/gi, "Ecoflex 00-30");
   s = s.replace(/\bEcoflex\s*00[-\s]*30\b/gi, "Ecoflex 00-30");

@@ -7,9 +7,10 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
-import type { ChapterBlock, ChapterDoc, TableBlock } from "@/models/Chapter";
+import type { ChapterBlock, ChapterDoc, EquationBlock, TableBlock } from "@/models/Chapter";
 import type { PdfSettingsDoc } from "@/models/PdfSettings";
 import { THESIS_TITLE } from "@/lib/pdf/constants";
+import { EquationPdfSvg } from "@/lib/pdf/EquationPdfSvg";
 import {
   columnWidthPercent,
   safeText,
@@ -366,51 +367,76 @@ function createStyles(accentColor: string) {
       backgroundColor: "#f8fafc",
     },
     equationOuter: {
-      marginVertical: 8,
-    },
-    equationBox: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      backgroundColor: "#f8fafc",
-      borderWidth: 1,
-      borderColor: "#e2e8f0",
-      borderStyle: "solid",
-      borderRadius: 4,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-      marginTop: 12,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "stretch",
+      marginTop: 14,
       marginBottom: 4,
     },
-    equationBody: {
+    equationBox: {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "stretch",
+      justifyContent: "space-between",
+      backgroundColor: "#f0f4ff",
+      borderWidth: 1,
+      borderColor: "#cbd5e1",
+      borderStyle: "solid",
+      borderRadius: 8,
+      paddingVertical: 32,
+      paddingLeft: 16,
+      paddingRight: 16,
+    },
+    /** Matches site preview: row cluster (accent + math) beside equation number */
+    equationMainRow: {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "stretch",
       flex: 1,
       minWidth: 0,
     },
-    equationMono: {
-      fontFamily: "Courier",
-      fontSize: 9,
-      color: "#1a1a1a",
-      lineHeight: 1.35,
+    equationPurpleAccent: {
+      width: 4,
+      backgroundColor: "#8b5cf6",
+      borderRadius: 2,
+      alignSelf: "stretch",
     },
-    equationNote: {
-      fontFamily: "Helvetica-Oblique",
-      fontSize: 7,
-      color: "#64748b",
-      marginTop: 6,
+    equationMathColumn: {
+      display: "flex",
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "column",
+      alignItems: "stretch",
+      justifyContent: "center",
+      paddingLeft: 12,
+    },
+    equationSvgHolder: {
+      display: "flex",
+      width: "100%",
+      flexDirection: "column",
+      alignItems: "stretch",
+    },
+    equationNumberCell: {
+      display: "flex",
+      width: 44,
+      marginLeft: 10,
+      alignItems: "center",
+      justifyContent: "flex-end",
+      alignSelf: "stretch",
     },
     equationNumber: {
       fontFamily: "Times-Roman",
       fontSize: 11,
       color: "#374151",
-      marginLeft: 8,
-      alignSelf: "flex-start",
-      paddingTop: 2,
+      textAlign: "right",
     },
     equationCaption: {
       fontFamily: "Times-Italic",
-      fontSize: 10,
+      fontSize: 9,
       color: "#4b5563",
       textAlign: "center",
-      marginBottom: 12,
+      marginTop: 10,
+      marginBottom: 14,
     },
     tableCaption: {
       fontFamily: "Helvetica-Bold",
@@ -593,22 +619,33 @@ function BlockViews({
               </View>
             );
           }
-          const latex = b.latex.trim();
+          const eq = b as EquationBlock;
+          const latex = eq.latex.trim();
           const num = eqLabelByKey[key] || "";
+          const vec = eq._equationVector;
           return (
-            <View key={i} style={styles.equationOuter} wrap={false}>
+            <View key={i} style={styles.equationOuter}>
               <View style={styles.equationBox}>
-                <View style={styles.equationBody}>
-                  <Text style={styles.equationMono}>{latex}</Text>
-                  <Text style={styles.equationNote}>
-                    Full typeset math (KaTeX) is available in the web chapter preview; PDF uses
-                    LaTeX source for portability on serverless hosts.
-                  </Text>
+                <View style={styles.equationMainRow}>
+                  <View style={styles.equationPurpleAccent} wrap={false} />
+                  <View style={styles.equationMathColumn}>
+                    <View style={styles.equationSvgHolder}>
+                      <EquationPdfSvg data={vec ?? null} latexForLog={latex} />
+                    </View>
+                  </View>
                 </View>
-                {num ? <Text style={styles.equationNumber}>{num}</Text> : null}
+                {num ? (
+                  <View style={styles.equationNumberCell} wrap={false}>
+                    <Text style={styles.equationNumber} wrap={false}>
+                      {num}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               {b.caption ? (
-                <Text style={styles.equationCaption}>{safeText(b.caption)}</Text>
+                <Text style={styles.equationCaption} wrap={false}>
+                  {safeText(b.caption)}
+                </Text>
               ) : null}
             </View>
           );

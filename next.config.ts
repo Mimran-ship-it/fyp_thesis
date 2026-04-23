@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "@react-pdf/layout",
     "@react-pdf/png-js",
     "@react-pdf/pdfkit",
+    "mathjax-full",
   ],
   images: {
     remotePatterns: [

@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import type { PdfEquationVector } from "@/lib/pdf/pdfEquationVector";
 
 export type BlockBase = {
   _id?: string;
@@ -23,6 +24,8 @@ export type EquationBlock = BlockBase & {
   label?: string;
   displayMode?: boolean;
   caption?: string;
+  /** Populated during server-side PDF generation (MathJax SVG -> vector tree) */
+  _equationVector?: PdfEquationVector | null;
 };
 
 export type FigureBlock = BlockBase & {

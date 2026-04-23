@@ -6,7 +6,9 @@ import { getPublishedChapters } from "@/lib/chapters";
 import { getPdfSettings } from "@/lib/pdfSettings";
 import { ThesisDocument } from "@/lib/pdf/ThesisDocument";
 import { registerThesisFonts } from "@/lib/pdf/registerFonts";
-import type { ChapterDoc } from "@/models/Chapter";
+import { normalizeChapterBlocks } from "@/lib/thesisTerminology";
+import { renderEquationToSVG } from "@/lib/pdf/renderEquationToSVG";
+import type { ChapterDoc, EquationBlock } from "@/models/Chapter";
 import type { PdfSettingsDoc } from "@/models/PdfSettings";
 
 export const runtime = "nodejs";
@@ -32,12 +34,27 @@ export async function GET(req: Request) {
     ]);
 
     const origin = getOrigin(req);
-    const serialized = JSON.parse(
-      JSON.stringify({ chapters, settings })
-    ) as {
-      chapters: ChapterDoc[];
-      settings: PdfSettingsDoc;
+    const rawChapters = JSON.stringify(chapters).replace(/00-30\s+00-30/g, "00-30");
+    const cleanedChapters = JSON.parse(rawChapters) as ChapterDoc[];
+    const serialized = {
+      chapters: cleanedChapters.map((c) => ({
+        ...c,
+        blocks: normalizeChapterBlocks(Array.isArray(c.blocks) ? c.blocks : []),
+      })) as ChapterDoc[],
+      settings: JSON.parse(JSON.stringify(settings)) as PdfSettingsDoc,
     };
+
+    for (const chapter of serialized.chapters) {
+      const blocks = Array.isArray(chapter.blocks) ? chapter.blocks : [];
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        if (b.type !== "equation") continue;
+        const eb = b as EquationBlock;
+        if (typeof eb.latex !== "string" || !eb.latex.trim()) continue;
+        const vector = renderEquationToSVG(eb.latex.trim(), eb.displayMode !== false);
+        blocks[i] = { ...eb, _equationVector: vector } as EquationBlock;
+      }
+    }
 
     // ThesisDocument’s root is <Document />; cast satisfies renderToBuffer’s Document-only typing.
     const buffer = await renderToBuffer(
